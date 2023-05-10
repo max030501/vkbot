@@ -1,0 +1,14 @@
+bot:
+  botToken: 6109579248:AAHuRIbC_7LthB48k6OhJITCOtrxAeVOHCw # Токен бота
+  updateTimeout: 60 # интервал обращения к Telegram API для поддержания активного соединения
+  delMessage:
+    timeoutAfterSet: 10 # Время, после которого удаляются пароли, вводимые пользователем
+    timeoutAfterGet: 60 # Время, после которого удаляются пароли, возвращаемые ботом
+  setService:
+    lenService: 50 # Максимальная длина сервиса
+    lenLogin: 50 # Максимальная длина логина
+    lenPassword: 60 # Максимальная длина пароля
+  inlineKeyboard:
+    countPerPage: 10 # Количество отображаемых сервисов на странице
+    countPerRow: 2 # Количество отображаемых сервисов в строке
+

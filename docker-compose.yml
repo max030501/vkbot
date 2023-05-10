@@ -1,0 +1,18 @@
+services:
+  vkbot:
+    image: max030511/vkbot
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./log/:/var/log/VKbot/
+    links:
+      - db
+  db:
+    image: max030511/db
+    ports:
+      - "3306:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: 12345
+    volumes:
+      - ./dbData:/var/lib/mysql
+
