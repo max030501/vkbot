@@ -7,6 +7,7 @@ services:
       - ./log/:/var/log/VKbot/
     links:
       - db
+    restart: on-failure
   db:
     image: max030511/db
     ports:
@@ -15,4 +16,5 @@ services:
       MYSQL_ROOT_PASSWORD: 12345
     volumes:
       - ./dbData:/var/lib/mysql
+    restart: on-failure
 
