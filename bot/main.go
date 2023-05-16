@@ -15,7 +15,7 @@ import (
 )
 
 // Карта для хранения списка сервисов каждого пользователя локально для обработки Inline клавиатур
-var services map[int64][]string
+var services map[int64][]*types.Service
 
 // Список идентификаторов чатов и сообщений для последующего удаления спустя время
 var queueDelMessages *list.List
@@ -46,7 +46,7 @@ func main() {
 	scheduler = tasks.New()
 	defer scheduler.Stop()
 	usersData = make(map[int64]*types.UserData)
-	services = make(map[int64][]string)
+	services = make(map[int64][]*types.Service)
 	bot, err = tgbotapi.NewBotAPI(cfg.Bot.BotToken)
 	logger.ForError(err)
 	logger.Logs.Printf(types.AuthorizationInfo, bot.Self.UserName)
@@ -96,10 +96,10 @@ func main() {
 				if user, ok := usersData[chatId]; ok {
 					switch user.State {
 					case types.ServiceSet:
-						if len(message) > cfg.Bot.SetService.LenService {
+						if len([]rune(message)) > cfg.Bot.SetService.LenService {
 							msg.Text = types.ErrLength
 						} else {
-							_, _, err = db.GetServiceByName(chatId, message)
+							_, _, err = db.GetServiceByName(message, chatId)
 							if err == nil {
 								msg.Text = types.ServiceExists
 							} else {
@@ -109,7 +109,7 @@ func main() {
 							}
 						}
 					case types.LoginSet:
-						if len(message) > cfg.Bot.SetService.LenLogin {
+						if len([]rune(message)) > cfg.Bot.SetService.LenLogin {
 							msg.Text = types.ErrLength
 						} else {
 							usersData[chatId].Login = message
@@ -117,7 +117,7 @@ func main() {
 							msg.Text = types.PasswordNameSet
 						}
 					case types.PassSet:
-						if len(message) > cfg.Bot.SetService.LenPassword {
+						if len([]rune(message)) > cfg.Bot.SetService.LenPassword {
 							msg.Text = types.ErrLength
 						} else {
 							usersData[chatId].Password = message
@@ -127,8 +127,8 @@ func main() {
 								usersData[chatId].Login,
 								usersData[chatId].Password)
 							msg.Text = fmt.Sprintf(types.AddService, usersData[chatId].Service)
-							deleteTimeoutMessage(chatId, messageId, time.Duration(cfg.Bot.DelMessage.TimeoutAfterSet)*time.Second)
 						}
+						deleteTimeoutMessage(chatId, messageId, time.Duration(cfg.Bot.DelMessage.TimeoutAfterSet)*time.Second)
 					default:
 						msg.Text = types.ErrCom
 					}
@@ -149,7 +149,7 @@ func main() {
 // Функция формирования разметки для Inline клавиатуры
 func ServiceMarkup(currentPage, count int, chatId int64, mode string) (markup tgbotapi.InlineKeyboardMarkup) {
 
-	var s []string
+	var s []*types.Service
 	if currentPage*count+count >= len(services[chatId][currentPage*count:]) {
 		s = services[chatId][currentPage*count:]
 	} else {
@@ -167,7 +167,8 @@ func ServiceMarkup(currentPage, count int, chatId int64, mode string) (markup tg
 			j++
 			rows[j] = make([]tgbotapi.InlineKeyboardButton, 0)
 		}
-		rows[j] = append(rows[j], tgbotapi.NewInlineKeyboardButtonData(s[i], fmt.Sprintf("%s:%s", mode, s[i])))
+
+		rows[j] = append(rows[j], tgbotapi.NewInlineKeyboardButtonData(s[i].Service, fmt.Sprintf("%s:%d", mode, s[i].Id)))
 
 	}
 	maxPages := len(services[chatId]) / count
@@ -232,13 +233,14 @@ func CallbackQueryHandler(query *tgbotapi.CallbackQuery) {
 }
 
 // Функци обработки Callback запроса на получение сервиса
-func HandleGetCallbackQuery(messageId int, chatId int64, service string) {
-	login, password, err := db.GetServiceByName(chatId, service)
+func HandleGetCallbackQuery(messageId int, chatId int64, data string) {
+	id, _ := strconv.Atoi(data)
+	login, password, err := db.GetServiceById(id)
 	if err != nil {
 		services[chatId] = db.GetServices(chatId)
 		SendServices(chatId, 0, cfg.Bot.InlineKeyboard.CountPerPage, &messageId, "get")
 	} else {
-		msg := tgbotapi.NewMessage(chatId, fmt.Sprintf(types.ServiceInfo, service, login, password))
+		msg := tgbotapi.NewMessage(chatId, fmt.Sprintf(types.ServiceInfo, login, password))
 		msg.ParseMode = tgbotapi.ModeMarkdownV2
 		m, err := bot.Send(msg)
 		if err != nil {
@@ -250,8 +252,9 @@ func HandleGetCallbackQuery(messageId int, chatId int64, service string) {
 }
 
 // Функци обработки Callback запроса на удаление сервиса
-func HandleDelCallbackQuery(messageId int, chatId int64, service string) {
-	db.DelServiceByName(chatId, service)
+func HandleDelCallbackQuery(messageId int, chatId int64, data string) {
+	id, _ := strconv.Atoi(data)
+	db.DelServiceById(id)
 	services[chatId] = db.GetServices(chatId)
 	SendServices(chatId, 0, cfg.Bot.InlineKeyboard.CountPerPage, &messageId, "del")
 

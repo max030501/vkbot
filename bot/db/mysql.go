@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	_ "github.com/go-sql-driver/mysql"
 	"vkbot/logger"
+	"vkbot/types"
 )
 
 // Создание подключения к БД
@@ -24,26 +25,40 @@ func InsertServiceInfo(chatId int64, service, login, password string) {
 }
 
 // Получение списка всех сервисов
-func GetServices(chatId int64) []string {
+func GetServices(chatId int64) []*types.Service {
 	db := mysqlConn()
-	rows, err := db.Query("SELECT service from services  where chat_id = ? ", chatId)
+	rows, err := db.Query("SELECT service,id from services  where chat_id = ? ", chatId)
 	logger.ForError(err)
-	services := make([]string, 0)
+	var services []*types.Service
 	for rows.Next() {
-		var service string
-		err = rows.Scan(&service)
+		var service types.Service
+		err = rows.Scan(&service.Service, &service.Id)
 		logger.ForError(err)
-		services = append(services, service)
+		services = append(services, &service)
 	}
 	defer db.Close()
 	return services
 }
 
 // Получение сервиса по имени
-func GetServiceByName(chatId int64, service string) (string, string, error) {
+func GetServiceById(id int) (string, string, error) {
 	db := mysqlConn()
 	defer db.Close()
-	rows, err := db.Query("SELECT login,password from services  where chat_id = ? and service = ? ", chatId, service)
+	rows, err := db.Query("SELECT login,password from services  where id = ? ", id)
+	logger.ForError(err)
+	var login, password string
+	rows.Next()
+	err = rows.Scan(&login, &password)
+	if err != nil {
+		return "", "", err
+	}
+	return login, password, nil
+}
+
+func GetServiceByName(name string, chatId int64) (string, string, error) {
+	db := mysqlConn()
+	defer db.Close()
+	rows, err := db.Query("SELECT login,password from services  where service = ? and chat_id = ? ", name, chatId)
 	logger.ForError(err)
 	var login, password string
 	rows.Next()
@@ -55,10 +70,10 @@ func GetServiceByName(chatId int64, service string) (string, string, error) {
 }
 
 // Удаление сервиса по имени
-func DelServiceByName(chatId int64, service string) error {
+func DelServiceById(id int) error {
 	db := mysqlConn()
 	defer db.Close()
-	_, err := db.Exec("DELETE from services  where chat_id = ? and service = ? ", chatId, service)
+	_, err := db.Exec("DELETE from services  where id = ? ", id)
 	if err != nil {
 		return err
 	}

@@ -24,3 +24,8 @@ type DelMessage struct {
 	ChatID    int64
 	MessageID int
 }
+
+type Service struct {
+	Id      int
+	Service string
+}
